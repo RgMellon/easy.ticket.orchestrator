@@ -1,5 +1,75 @@
 # easy.ticket.orchestrator
 
+Orquestrador da saga transacional de tickets de suporte técnico. Gerencia o ciclo de vida completo de um ticket desde a criação até o encerramento, coordenando especialistas, roteamento e pesquisa de satisfação.
+
+## Fluxo da Saga
+
+```
+                        ┌─────────────────┐
+                        │     [START]      │
+                        │  ticket criado   │
+                        └────────┬────────┘
+                                 │
+                                 ▼
+                        ┌─────────────────┐
+                        │    CREATED       │
+                        │ Aguardando       │
+                        │ especialista     │
+                        └────────┬────────┘
+                                 │ SPECIALIST_ASSIGNED
+                                 ▼
+                        ┌─────────────────┐
+               ┌───────▶│    ASSIGNED      │
+               │        │ Especialista     │
+               │        │ atribuído,       │
+               │        │ aguardando       │
+               │        │ confirmação      │
+               │        └────────┬────────┘
+               │                 │ TICKET_ROUTED
+               │                 ▼
+               │        ┌─────────────────┐
+               │        │    ACCEPTED      │
+               │        │ Especialista     │
+               │        │ confirmou,       │
+               │        │ em andamento     │
+               │        └────────┬────────┘
+               │                 │
+               │        ┌────────┴────────┐
+               │  REASSIGN_REQUESTED  REPAIR_COMPLETED
+               │        │                  │
+               │        ▼                  ▼
+               │ ┌─────────────┐  ┌─────────────────┐
+               │ │   REASSIGN  │  │    COMPLETED     │
+               │ │ Reagendando │  │ Reparo concluído,│
+               │ │ especialista│  │ enviando pesquisa│
+               │ └──────┬──────┘  └────────┬────────┘
+               │        │                  │
+               │ SPECIALIST_ASSIGNED  ┌────┴────────────┐
+               └────────┘        SURVEY_SENT       SURVEY_FAILED
+                                       │                 │
+                                       ▼                 ▼
+                                ┌─────────────┐  ┌─────────────┐
+                                │   CLOSED ✓  │  │  NO_SURVEY  │
+                                │ Fim da saga │  │ Retry pend. │
+                                └─────────────┘  └──────┬──────┘
+                                                        │ SURVEY_SENT
+                                                        ▼
+                                                ┌─────────────┐
+                                                │   CLOSED ✓  │
+                                                │ Fim da saga │
+                                                └─────────────┘
+```
+
+| Estado | Descrição | Terminal |
+|---|---|---|
+| `CREATED` | Aguarda especialista disponível | Não |
+| `ASSIGNED` | Especialista atribuído, aguarda confirmação | Não |
+| `ACCEPTED` | Em andamento pelo especialista | Não |
+| `REASSIGN` | Aguarda novo especialista | Não |
+| `COMPLETED` | Reparo concluído, enviando pesquisa | Não |
+| `NO_SURVEY` | Pesquisa falhou, retry pendente | Não |
+| `CLOSED` | Saga encerrada | **Sim** |
+
 ## Documentação
 
 - [Fluxo da Saga do Ticket](docs/ticket-saga-flow.md) — estados, transições e diagrama de fluxo
