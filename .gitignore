@@ -38,6 +38,9 @@ lerna-debug.log*
 # Amazon Q
 .amazonq/
 
+# Review guides
+docs/review-guide.md
+
 # dotenv environment variable files
 .env
 .env.prod
