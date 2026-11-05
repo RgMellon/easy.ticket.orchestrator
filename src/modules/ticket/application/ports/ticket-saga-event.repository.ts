@@ -1,4 +1,7 @@
-import { TicketSagaEvent, TicketSagaState } from '../../domain/ticket-saga.types';
+import {
+  TicketSagaEvent,
+  TicketSagaState,
+} from '../../domain/ticket-saga.types';
 
 export interface TicketSagaEventEntity {
   ticketId: string;

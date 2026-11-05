@@ -46,7 +46,7 @@ export class SurveySentAction {
   private readonly logger = new Logger(SurveySentAction.name);
 
   async execute(ctx: TicketSagaContext): Promise<void> {
-    this.logger.log(
+    return this.logger.log(
       `Survey sent for ticket=${ctx.ticketId} client=${ctx.clientId}`,
     );
   }
