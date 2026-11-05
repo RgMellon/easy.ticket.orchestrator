@@ -35,6 +35,9 @@ lerna-debug.log*
 !.vscode/launch.json
 !.vscode/extensions.json
 
+# Amazon Q
+.amazonq/
+
 # dotenv environment variable files
 .env
 .env.prod
