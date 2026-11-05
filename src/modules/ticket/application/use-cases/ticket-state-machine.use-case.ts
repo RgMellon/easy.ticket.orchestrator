@@ -1,6 +1,6 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { TicketStateMachine } from '../../domain/ticket-state-machine';
-import {
+import type {
   TicketSagaContext,
   TicketSagaEvent,
   TicketSagaState,
@@ -9,14 +9,8 @@ import type { ITicketRepository } from '../ports/ticket.repository';
 import { TICKET_REPOSITORY } from '../ports/ticket.repository';
 import type { ITicketSagaEventRepository } from '../ports/ticket-saga-event.repository';
 import { TICKET_SAGA_EVENT_REPOSITORY } from '../ports/ticket-saga-event.repository';
-import {
-  AssignSpecialistAction,
-  RouteTicketAction,
-  RepairCompletedAction,
-  ReassignRequestedAction,
-  SurveySentAction,
-  SurveyFailedAction,
-} from '../../infra/actions/ticket.actions';
+import type { TicketActions } from '../ports/ticket.actions';
+import { TICKET_ACTIONS } from '../ports/ticket.actions';
 
 export interface SendEventResult {
   ticketId: string;
@@ -35,12 +29,8 @@ export class TicketStateMachineUseCase {
     private readonly ticketRepo: ITicketRepository,
     @Inject(TICKET_SAGA_EVENT_REPOSITORY)
     private readonly eventRepo: ITicketSagaEventRepository,
-    private readonly assignSpecialist: AssignSpecialistAction,
-    private readonly routeTicket: RouteTicketAction,
-    private readonly repairCompleted: RepairCompletedAction,
-    private readonly reassignRequested: ReassignRequestedAction,
-    private readonly surveySent: SurveySentAction,
-    private readonly surveyFailed: SurveyFailedAction,
+    @Inject(TICKET_ACTIONS)
+    private readonly actions: TicketActions,
   ) {}
 
   async execute(
@@ -58,12 +48,12 @@ export class TicketStateMachineUseCase {
     };
 
     const machine = new TicketStateMachine(ticket.currentState, ctx, {
-      onSpecialistAssigned: (c) => this.assignSpecialist.execute(c),
-      onTicketRouted: (c) => this.routeTicket.execute(c),
-      onRepairCompleted: (c) => this.repairCompleted.execute(c),
-      onReassignRequested: (c) => this.reassignRequested.execute(c),
-      onSurveySent: (c) => this.surveySent.execute(c),
-      onSurveyFailed: (c) => this.surveyFailed.execute(c),
+      onSpecialistAssigned: (c) => this.actions.assignSpecialist.execute(c),
+      onTicketRouted: (c) => this.actions.routeTicket.execute(c),
+      onRepairCompleted: (c) => this.actions.repairCompleted.execute(c),
+      onReassignRequested: (c) => this.actions.reassignRequested.execute(c),
+      onSurveySent: (c) => this.actions.surveySent.execute(c),
+      onSurveyFailed: (c) => this.actions.surveyFailed.execute(c),
     });
 
     const from = machine.getCurrentState();

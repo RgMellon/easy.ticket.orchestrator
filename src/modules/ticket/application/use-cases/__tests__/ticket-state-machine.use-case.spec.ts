@@ -1,6 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { TicketStateMachineUseCase } from '../ticket-state-machine.use-case';
 import { TicketEntity } from '../../ports/ticket.repository';
+import { TicketActions } from '../../ports/ticket.actions';
 
 const makeTicket = (override?: Partial<TicketEntity>): TicketEntity => ({
   id: 'ticket-1',
@@ -12,18 +13,7 @@ const makeTicket = (override?: Partial<TicketEntity>): TicketEntity => ({
   ...override,
 });
 
-const makeRepos = (ticket: TicketEntity | null = makeTicket()) => ({
-  ticketRepo: {
-    findById: jest.fn().mockResolvedValue(ticket),
-    updateState: jest.fn().mockResolvedValue(undefined),
-    create: jest.fn(),
-  },
-  eventRepo: {
-    save: jest.fn().mockResolvedValue(undefined),
-  },
-});
-
-const makeActions = () => ({
+const makeActions = (): TicketActions => ({
   assignSpecialist: { execute: jest.fn().mockResolvedValue(undefined) },
   routeTicket: { execute: jest.fn().mockResolvedValue(undefined) },
   repairCompleted: { execute: jest.fn().mockResolvedValue(undefined) },
@@ -33,17 +23,17 @@ const makeActions = () => ({
 });
 
 const makeUseCase = (ticket: TicketEntity | null = makeTicket()) => {
-  const { ticketRepo, eventRepo } = makeRepos(ticket);
+  const ticketRepo = {
+    findById: jest.fn().mockResolvedValue(ticket),
+    updateState: jest.fn().mockResolvedValue(undefined),
+    create: jest.fn(),
+  };
+  const eventRepo = { save: jest.fn().mockResolvedValue(undefined) };
   const actions = makeActions();
   const useCase = new TicketStateMachineUseCase(
     ticketRepo as any,
     eventRepo as any,
-    actions.assignSpecialist as any,
-    actions.routeTicket as any,
-    actions.repairCompleted as any,
-    actions.reassignRequested as any,
-    actions.surveySent as any,
-    actions.surveyFailed as any,
+    actions,
   );
   return { useCase, ticketRepo, eventRepo, actions };
 };
