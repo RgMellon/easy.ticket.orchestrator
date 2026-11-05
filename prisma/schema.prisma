@@ -6,3 +6,53 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum TicketSagaState {
+  CREATED
+  ASSIGNED
+  ACCEPTED
+  REASSIGN
+  COMPLETED
+  NO_SURVEY
+  CLOSED
+
+  @@map("ticket_saga_state")
+}
+
+enum TicketSagaEvent {
+  SPECIALIST_ASSIGNED
+  TICKET_ROUTED
+  REPAIR_COMPLETED
+  REASSIGN_REQUESTED
+  SURVEY_SENT
+  SURVEY_FAILED
+
+  @@map("ticket_saga_event")
+}
+
+model Ticket {
+  id           String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientId     String          @map("client_id") @db.VarChar(50)
+  specialistId String?         @map("specialist_id") @db.VarChar(50)
+  currentState TicketSagaState @default(CREATED) @map("current_state")
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+
+  sagaEvents TicketSagaEventLog[]
+
+  @@map("tickets")
+}
+
+model TicketSagaEventLog {
+  id           String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId     String          @map("ticket_id") @db.Uuid
+  fromState    TicketSagaState @map("from_state")
+  toState      TicketSagaState @map("to_state")
+  triggeredBy  TicketSagaEvent @map("triggered_by")
+  errorMessage String?         @map("error_message")
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+
+  @@map("ticket_saga_events")
+}

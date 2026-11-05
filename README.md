@@ -1,23 +1,35 @@
 # easy.ticket.orchestrator
 
+## Documentação
+
+- [Fluxo da Saga do Ticket](docs/ticket-saga-flow.md) — estados, transições e diagrama de fluxo
+- [ADR-001 — Saga Orquestrada com Máquina de Estado](docs/adrs/ADR-001-ticket-saga-state-machine.md)
+
 ## Requisitos
 
-- Docker
-- Docker Compose
-
-> Node.js **não é necessário** localmente. Tudo roda dentro do Docker.
+- Docker e Docker Compose
+- Node.js (apenas para desenvolvimento local)
 
 ## Desenvolvimento
 
-Sobe o banco e a aplicação com hot-reload:
+### Local (recomendado)
+
+Sobe apenas o Postgres no Docker e roda a aplicação localmente com hot-reload:
 
 ```bash
-docker compose up
+docker compose -f docker-compose.dev.yml up -d
+yarn install
+yarn prisma:generate
+yarn start:dev
 ```
 
 A API estará disponível em `http://localhost:3000`.
 
-O Nest watch está ativo — qualquer alteração em `src/` reinicia automaticamente.
+### Tudo no Docker
+
+```bash
+docker compose up
+```
 
 ## Banco de dados
 
