@@ -3,6 +3,7 @@
 ## Documentação
 
 - [Fluxo da Saga do Ticket](docs/ticket-saga-flow.md) — estados, transições e diagrama de fluxo
+- [Fluxo de Execução](docs/execution-flow.md) — sequência de arquivos chamados na criação e transição de ticket
 - [ADR-001 — Saga Orquestrada com Máquina de Estado](docs/adrs/ADR-001-ticket-saga-state-machine.md)
 
 ## Requisitos
