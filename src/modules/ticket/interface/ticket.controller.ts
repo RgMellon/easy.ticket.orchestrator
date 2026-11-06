@@ -1,21 +1,30 @@
 import { Body, Controller, Inject, Param, Post } from '@nestjs/common';
-import { TicketStateMachineUseCase, TICKET_STATE_MACHINE_USE_CASE } from '../application/use-cases/ticket-state-machine.use-case';
-import { CreateTicketDto, SendEventDto, TicketResponseDto } from './dto/ticket.dto';
-import { TICKET_REPOSITORY } from '../application/ports/ticket.repository';
-import type { ITicketRepository } from '../application/ports/ticket.repository';
+import {
+  TicketStateMachineUseCase,
+  TICKET_STATE_MACHINE_USE_CASE,
+} from '../application/use-cases/ticket-state-machine.use-case';
+import {
+  CreateTicketUseCase,
+  CREATE_TICKET_USE_CASE,
+} from '../application/use-cases/create-ticket.use-case';
+import {
+  CreateTicketDto,
+  SendEventDto,
+  TicketResponseDto,
+} from './dto/ticket.dto';
 
 @Controller('tickets')
 export class TicketController {
   constructor(
+    @Inject(CREATE_TICKET_USE_CASE)
+    private readonly createTicket: CreateTicketUseCase,
     @Inject(TICKET_STATE_MACHINE_USE_CASE)
     private readonly stateMachine: TicketStateMachineUseCase,
-    @Inject(TICKET_REPOSITORY)
-    private readonly ticketRepo: ITicketRepository,
   ) {}
 
   @Post()
   async create(@Body() dto: CreateTicketDto) {
-    return this.ticketRepo.create({ clientId: dto.clientId });
+    return this.createTicket.execute(dto.clientId);
   }
 
   @Post(':id/events')

@@ -5,12 +5,12 @@ import type {
   TicketSagaEvent,
   TicketSagaState,
 } from '../../domain/ticket-saga.types';
-import type { ITicketRepository } from '../ports/ticket.repository';
-import { TICKET_REPOSITORY } from '../ports/ticket.repository';
-import type { ITicketSagaEventRepository } from '../ports/ticket-saga-event.repository';
-import { TICKET_SAGA_EVENT_REPOSITORY } from '../ports/ticket-saga-event.repository';
-import type { TicketActions } from '../ports/ticket.actions';
-import { TICKET_ACTIONS } from '../ports/ticket.actions';
+import type { ITicketRepository } from '../../domain/ticket.repository';
+import { TICKET_REPOSITORY } from '../../domain/ticket.repository';
+import type { ITicketSagaEventRepository } from '../../domain/ticket-saga-event.repository';
+import { TICKET_SAGA_EVENT_REPOSITORY } from '../../domain/ticket-saga-event.repository';
+import type { TicketActions } from '../../domain/ticket.actions';
+import { TICKET_ACTIONS } from '../../domain/ticket.actions';
 
 export interface SendEventResult {
   ticketId: string;

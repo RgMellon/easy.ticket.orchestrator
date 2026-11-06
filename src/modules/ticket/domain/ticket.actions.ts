@@ -1,4 +1,4 @@
-import type { TicketSagaContext } from '../../domain/ticket-saga.types';
+import type { TicketSagaContext } from './ticket-saga.types';
 
 export interface ITicketAction {
   execute(ctx: TicketSagaContext): Promise<void>;

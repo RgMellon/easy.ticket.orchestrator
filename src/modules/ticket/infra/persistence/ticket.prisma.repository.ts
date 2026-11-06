@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../infra/database/prisma.service';
-import type { ITicketRepository, TicketEntity } from '../../application/ports/ticket.repository';
+import type { ITicketRepository, TicketEntity } from '../../domain/ticket.repository';
 import type { TicketSagaState } from '../../domain/ticket-saga.types';
 
 const toEntity = (raw: any): TicketEntity => ({

@@ -1,7 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { TicketStateMachineUseCase } from '../ticket-state-machine.use-case';
-import { TicketEntity } from '../../ports/ticket.repository';
-import { TicketActions } from '../../ports/ticket.actions';
+import { TicketEntity } from '../../../domain/ticket.repository';
+import { TicketActions } from '../../../domain/ticket.actions';
 
 const makeTicket = (override?: Partial<TicketEntity>): TicketEntity => ({
   id: 'ticket-1',
