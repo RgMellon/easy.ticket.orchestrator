@@ -1,5 +1,9 @@
 import { Logger } from '@nestjs/common';
 import {
+  InvalidTransitionError,
+  StateMachineExecutionError,
+} from '../../../common/errors/domain.errors';
+import {
   TicketSagaContext,
   TicketSagaEvent,
   TicketSagaState,
@@ -102,9 +106,7 @@ export class TicketStateMachine {
         event,
         msg: 'invalid transition',
       });
-      throw new Error(
-        `Invalid transition: cannot fire '${event}' from state '${this.currentState}'`,
-      );
+      throw new InvalidTransitionError(event, this.currentState);
     }
 
     if (reason) this.context.errorMessage = reason;
@@ -133,9 +135,7 @@ export class TicketStateMachine {
         error: (error as Error).message,
         msg: 'transition action failed, rolling back',
       });
-      throw new Error(
-        `State machine execution failed on '${event}': ${(error as Error).message}`,
-      );
+      throw new StateMachineExecutionError(event, error as Error);
     }
   }
 }

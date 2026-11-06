@@ -1,0 +1,170 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_source": "easy.ticket.orchestrator",
+  "resources": [
+    {
+      "_type": "environment",
+      "_id": "env_1",
+      "parentId": "wrk_1",
+      "name": "Local",
+      "data": {
+        "base_url": "http://localhost:3000",
+        "ticket_id": "TICKET_ID"
+      }
+    },
+    {
+      "_type": "workspace",
+      "_id": "wrk_1",
+      "parentId": null,
+      "name": "easy.ticket.orchestrator"
+    },
+    {
+      "_type": "request_group",
+      "_id": "grp_tickets",
+      "parentId": "wrk_1",
+      "name": "Tickets"
+    },
+    {
+      "_type": "request",
+      "_id": "req_create_ticket",
+      "parentId": "grp_tickets",
+      "name": "Criar ticket",
+      "method": "POST",
+      "url": "{{ _.base_url }}/tickets",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"clientId\": \"client-123\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ]
+    },
+    {
+      "_type": "request_group",
+      "_id": "grp_events",
+      "parentId": "wrk_1",
+      "name": "Eventos da Saga"
+    },
+    {
+      "_type": "request",
+      "_id": "req_specialist_assigned",
+      "parentId": "grp_events",
+      "name": "SPECIALIST_ASSIGNED — CREATED → ASSIGNED",
+      "method": "POST",
+      "url": "{{ _.base_url }}/tickets/{{ _.ticket_id }}/events",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"event\": \"SPECIALIST_ASSIGNED\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ]
+    },
+    {
+      "_type": "request",
+      "_id": "req_ticket_routed",
+      "parentId": "grp_events",
+      "name": "TICKET_ROUTED — ASSIGNED → ACCEPTED",
+      "method": "POST",
+      "url": "{{ _.base_url }}/tickets/{{ _.ticket_id }}/events",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"event\": \"TICKET_ROUTED\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ]
+    },
+    {
+      "_type": "request",
+      "_id": "req_repair_completed",
+      "parentId": "grp_events",
+      "name": "REPAIR_COMPLETED — ACCEPTED → COMPLETED",
+      "method": "POST",
+      "url": "{{ _.base_url }}/tickets/{{ _.ticket_id }}/events",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"event\": \"REPAIR_COMPLETED\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ]
+    },
+    {
+      "_type": "request",
+      "_id": "req_reassign_requested",
+      "parentId": "grp_events",
+      "name": "REASSIGN_REQUESTED — ACCEPTED → REASSIGN",
+      "method": "POST",
+      "url": "{{ _.base_url }}/tickets/{{ _.ticket_id }}/events",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"event\": \"REASSIGN_REQUESTED\",\n  \"reason\": \"Especialista indisponível\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ]
+    },
+    {
+      "_type": "request",
+      "_id": "req_specialist_reassigned",
+      "parentId": "grp_events",
+      "name": "SPECIALIST_ASSIGNED — REASSIGN → ASSIGNED",
+      "method": "POST",
+      "url": "{{ _.base_url }}/tickets/{{ _.ticket_id }}/events",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"event\": \"SPECIALIST_ASSIGNED\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ]
+    },
+    {
+      "_type": "request",
+      "_id": "req_survey_sent",
+      "parentId": "grp_events",
+      "name": "SURVEY_SENT — COMPLETED → CLOSED",
+      "method": "POST",
+      "url": "{{ _.base_url }}/tickets/{{ _.ticket_id }}/events",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"event\": \"SURVEY_SENT\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ]
+    },
+    {
+      "_type": "request",
+      "_id": "req_survey_failed",
+      "parentId": "grp_events",
+      "name": "SURVEY_FAILED — COMPLETED → NO_SURVEY",
+      "method": "POST",
+      "url": "{{ _.base_url }}/tickets/{{ _.ticket_id }}/events",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"event\": \"SURVEY_FAILED\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ]
+    },
+    {
+      "_type": "request",
+      "_id": "req_survey_retry",
+      "parentId": "grp_events",
+      "name": "SURVEY_SENT — NO_SURVEY → CLOSED (retry)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/tickets/{{ _.ticket_id }}/events",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"event\": \"SURVEY_SENT\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ]
+    }
+  ]
+}
