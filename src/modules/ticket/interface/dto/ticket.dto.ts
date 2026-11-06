@@ -1,9 +1,16 @@
 import { IsEnum, IsOptional, IsString } from 'class-validator';
-import type { TicketSagaEvent } from '../../domain/ticket-saga.types';
+import {
+  ticketSagaEvents,
+  type TicketSagaEvent,
+} from '../../domain/ticket-saga.types';
 
 export class SendEventDto {
-  @IsEnum(['SPECIALIST_ASSIGNED', 'TICKET_ROUTED', 'REPAIR_COMPLETED', 'REASSIGN_REQUESTED', 'SURVEY_SENT', 'SURVEY_FAILED'])
-  event: TicketSagaEvent;
+  @IsEnum(ticketSagaEvents)
+  event!: TicketSagaEvent;
+
+  @IsOptional()
+  @IsString()
+  specialistId?: string;
 
   @IsOptional()
   @IsString()
@@ -12,7 +19,7 @@ export class SendEventDto {
 
 export class CreateTicketDto {
   @IsString()
-  clientId: string;
+  clientId!: string;
 }
 
 export interface TicketResponseDto {

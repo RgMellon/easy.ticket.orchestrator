@@ -1,4 +1,5 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { SpecialistRequiredError } from '../../../../common/errors/domain.errors';
 import { TicketStateMachine } from '../../domain/ticket-state-machine';
 import type {
   TicketSagaContext,
@@ -36,6 +37,7 @@ export class TicketStateMachineUseCase {
   async execute(
     ticketId: string,
     event: TicketSagaEvent,
+    specialistId?: string,
     reason?: string,
   ): Promise<SendEventResult> {
     const ticket = await this.ticketRepo.findById(ticketId);
@@ -44,8 +46,12 @@ export class TicketStateMachineUseCase {
     const ctx: TicketSagaContext = {
       ticketId: ticket.id,
       clientId: ticket.clientId,
-      specialistId: ticket.specialistId,
+      specialistId: specialistId ?? ticket.specialistId,
     };
+
+    if (event === 'SPECIALIST_ASSIGNED' && !ctx.specialistId) {
+      throw new SpecialistRequiredError();
+    }
 
     const machine = new TicketStateMachine(ticket.currentState, ctx, {
       onSpecialistAssigned: (c) => this.actions.assignSpecialist.execute(c),

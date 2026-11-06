@@ -32,6 +32,11 @@ export class TicketController {
     @Param('id') id: string,
     @Body() dto: SendEventDto,
   ): Promise<TicketResponseDto> {
-    return this.stateMachine.execute(id, dto.event, dto.reason);
+    return this.stateMachine.execute(
+      id,
+      dto.event,
+      dto.specialistId,
+      dto.reason,
+    );
   }
 }
