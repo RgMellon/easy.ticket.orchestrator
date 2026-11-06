@@ -52,7 +52,7 @@ model TicketSagaEventLog {
   errorMessage String?         @map("error_message")
   createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz
 
-  ticket Ticket @relation(fields: [ticketId], references: [id])
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@map("ticket_saga_events")
 }
