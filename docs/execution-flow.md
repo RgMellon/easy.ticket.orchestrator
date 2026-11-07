@@ -2,115 +2,112 @@
 
 ## 1. Criar um ticket — `POST /tickets`
 
-```
-{ "clientId": "client-123" }
-```
+### Fluxo síncrono — criação e publicação do evento
 
-### Sequência de arquivos chamados
+```mermaid
+sequenceDiagram
+    actor App as App Móvel
+    participant C as TicketController
+    participant UC as CreateTicketUseCase
+    participant TS as TicketService (HTTP)
+    participant DB as Postgres
+    participant MQ as RabbitMQ<br/>ticket.management
 
-```
-1. src/modules/ticket/interface/ticket.controller.ts
-   └── create() recebe o DTO e chama createTicket.execute()
+    App->>C: POST /tickets { clientId }
+    C->>UC: execute(clientId)
 
-2. src/modules/ticket/application/use-cases/create-ticket.use-case.ts
-   └── execute():
-       a. chama TicketServiceHttpClient.createTicket(clientId)   ← HTTP pro Serviço de Ticket
-       b. recebe { ticketId }
-       c. chama ticketRepo.create({ ticketId, clientId })        ← salva contexto da saga
-       d. chama AssignmentServiceHttpClient.assignSpecialist()   ← HTTP pro Serviço de Atribuição
-       e. recebe { specialistId }
-       f. chama stateMachine.execute(ticketId, SPECIALIST_ASSIGNED, specialistId)
-       g. chama stateMachine.execute(ticketId, TICKET_ROUTED)
+    UC->>TS: createTicket(clientId)
+    TS-->>UC: { ticketId }
 
-3. src/modules/ticket/infra/clients/ticket-service.http-client.ts
-   └── POST {TICKET_SERVICE_URL}/tickets
+    UC->>DB: create({ ticketId, clientId, state: CREATED })
+    DB-->>UC: TicketEntity
 
-4. src/modules/ticket/infra/clients/assignment-service.http-client.ts
-   └── POST {ASSIGNMENT_SERVICE_URL}/assignments
-       TODO: tratar falha de atribuição (nenhum especialista disponível)
+    UC->>MQ: publish(ticket.assignment.requested, { ticketId })
 
-5. src/modules/ticket/infra/persistence/ticket.prisma.repository.ts
-   └── create() — INSERT na tabela tickets com ticketId externo e currentState = CREATED
+    UC-->>C: TicketEntity { state: CREATED }
+    C-->>App: 201 { ticketId, currentState: CREATED }
 ```
 
-**Resultado:** linha inserida em `tickets` com `current_state = CREATED`, depois transicionada para `ACCEPTED` via `SPECIALIST_ASSIGNED` → `TICKET_ROUTED`
+> O cliente recebe resposta imediatamente com o ticket em `CREATED`. A atribuição do especialista acontece de forma assíncrona.
 
 ---
 
-## 2. Concluir um ticket — `POST /tickets/:id/events { event: REPAIR_COMPLETED }`
+### Fluxo assíncrono — atribuição de especialista
 
-### Sequência de arquivos chamados
+```mermaid
+sequenceDiagram
+    participant MQ as RabbitMQ<br/>ticket.management
+    participant AS as Serviço de Assignment
+    participant L as AssignmentEventListener
+    participant UC as TicketStateMachineUseCase
+    participant SM as TicketStateMachine
+    participant DB as Postgres
 
+    MQ->>AS: ticket.assignment.requested { ticketId }
+    AS->>AS: processa atribuição
+    AS->>MQ: ticket.assignment.completed { ticketId, specialistId }
+
+    MQ->>L: ticket.assignment.completed
+    L->>UC: execute(ticketId, SPECIALIST_ASSIGNED, specialistId)
+
+    UC->>DB: findByTicketId(ticketId)
+    DB-->>UC: Ticket { state: CREATED }
+
+    UC->>SM: send(SPECIALIST_ASSIGNED)
+    SM->>SM: AssignSpecialistAction
+    SM-->>UC: state: ASSIGNED
+
+    UC->>DB: updateState(ASSIGNED, specialistId)
+    UC->>DB: eventRepo.save(CREATED → ASSIGNED)
 ```
-1. src/modules/ticket/interface/ticket.controller.ts
-   └── sendEvent() chama stateMachine.execute(ticketId, REPAIR_COMPLETED)
-
-2. src/modules/ticket/application/use-cases/ticket-state-machine.use-case.ts
-   └── execute():
-       a. findByTicketId(ticketId)
-       b. monta TicketSagaContext
-       c. instancia TicketStateMachine com estado atual
-       d. machine.send(REPAIR_COMPLETED) → ACCEPTED → COMPLETED
-       e. updateState(COMPLETED)
-       f. eventRepo.save({ ACCEPTED → COMPLETED })
-       g. chama sendSurvey() internamente
-
-3. src/modules/ticket/domain/ticket-state-machine.ts
-   └── send(REPAIR_COMPLETED):
-       a. executa RepairCompletedAction
-
-4. src/modules/ticket/infra/actions/ticket.actions.ts — RepairCompletedAction
-   └── chama TicketServiceHttpClient.completeTicket(ticketId)   ← HTTP síncrono pro Serviço de Ticket
-       Serviço de Ticket atualiza banco + publica na fila de analytics (transparente pro orquestrador)
-
-5. src/modules/ticket/application/use-cases/ticket-state-machine.use-case.ts — sendSurvey()
-   └── tenta machine.send(SURVEY_SENT):
-       ✓ sucesso:
-           - SurveySentAction → SurveyServiceHttpClient.sendSurvey()  ← HTTP síncrono pro Serviço de Pesquisa
-           - updateState(CLOSED)
-           - eventRepo.save({ COMPLETED → CLOSED })
-           - retorna { to: CLOSED }
-       ✗ falha:
-           - machine.send(SURVEY_FAILED)
-           - SurveyFailedAction → loga (fila de retry pendente)
-           - updateState(NO_SURVEY)
-           - eventRepo.save({ COMPLETED → NO_SURVEY })
-           - retorna { to: NO_SURVEY }  ← sem erro pro app móvel
-```
-
-**Resultado:** ticket em `CLOSED` (caso feliz) ou `NO_SURVEY` (falha na pesquisa). App móvel sempre recebe resposta.
 
 ---
 
-## Resumo visual — fluxo de conclusão
+## 2. Concluir um ticket — `POST /tickets/:id/events`
 
+```mermaid
+sequenceDiagram
+    actor App as App Móvel
+    participant C as TicketController
+    participant UC as TicketStateMachineUseCase
+    participant SM as TicketStateMachine
+    participant TS as TicketService (HTTP)
+    participant SS as SurveyService (HTTP)
+    participant DB as Postgres
+
+    App->>C: POST /tickets/:id/events { event: REPAIR_COMPLETED }
+    C->>UC: execute(ticketId, REPAIR_COMPLETED)
+
+    UC->>DB: findByTicketId(ticketId)
+    DB-->>UC: Ticket { state: ACCEPTED }
+
+    UC->>SM: send(REPAIR_COMPLETED)
+    SM->>TS: completeTicket(ticketId)
+    TS-->>SM: ok
+    SM-->>UC: state: COMPLETED
+
+    UC->>DB: updateState(COMPLETED)
+    UC->>DB: eventRepo.save(ACCEPTED → COMPLETED)
+
+    UC->>SM: send(SURVEY_SENT)
+
+    alt Pesquisa enviada com sucesso
+        SM->>SS: sendSurvey(ticketId, clientId)
+        SS-->>SM: ok
+        SM-->>UC: state: CLOSED
+        UC->>DB: updateState(CLOSED)
+        UC->>DB: eventRepo.save(COMPLETED → CLOSED)
+        UC-->>C: { to: CLOSED }
+    else Falha no serviço de pesquisa
+        SM-->>UC: erro
+        UC->>SM: send(SURVEY_FAILED)
+        SM-->>UC: state: NO_SURVEY
+        UC->>DB: updateState(NO_SURVEY)
+        UC->>DB: eventRepo.save(COMPLETED → NO_SURVEY)
+        UC-->>C: { to: NO_SURVEY }
+    end
+
+    C-->>App: 200 { from, to }
 ```
-App móvel
-    │ POST /tickets/:id/events { REPAIR_COMPLETED }
-    ▼
-TicketController
-    │
-    ▼
-TicketStateMachineUseCase
-    │
-    ├── findByTicketId ──────────────▶ TicketPrismaRepository ──▶ Postgres
-    │
-    ├── TicketStateMachine.send(REPAIR_COMPLETED)
-    │       └── RepairCompletedAction
-    │               └── TicketServiceHttpClient ──▶ Serviço de Ticket
-    │                                                    └── publica analytics (assíncrono)
-    │
-    ├── updateState(COMPLETED) ──────▶ Postgres
-    ├── eventRepo.save() ────────────▶ Postgres
-    │
-    └── sendSurvey()
-            ├── [sucesso] SurveySentAction
-            │       └── SurveyServiceHttpClient ──▶ Serviço de Pesquisa
-            │               └── salva + envia e-mail
-            │
-            └── [falha] SurveyFailedAction
-                    └── loga (retry via fila — pendente)
-    │
-    ▼
-App móvel recebe resposta (CLOSED ou NO_SURVEY)
-```
+
+> Em caso de falha na pesquisa, o ticket vai para `NO_SURVEY` e o app móvel recebe resposta normalmente — sem erro. O retry da pesquisa é tratado de forma eventual.
