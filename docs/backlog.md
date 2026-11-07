@@ -50,3 +50,116 @@ Casos mínimos:
 - Port do publisher: `IAssignmentEventPublisher` em `src/modules/ticket/domain/ticket.actions.ts`
 - Padrão de use case existente: `src/modules/ticket/application/use-cases/create-ticket.use-case.ts`
 - Padrão de repositório existente: `src/modules/ticket/infra/persistence/ticket.prisma.repository.ts`
+
+---
+
+## [TASK-002] Criar o Serviço de Assignment (easy.ticket.assignment)
+
+**Contexto**
+
+O orquestrador publica o evento `ticket.assignment.requested` na exchange `ticket.management` (tipo `topic`) do RabbitMQ sempre que um ticket é criado ou precisa ser reatribuído. O Serviço de Assignment é o consumidor desse evento — ele é responsável por encontrar um especialista disponível e publicar de volta o evento `ticket.assignment.completed`.
+
+Esse serviço ainda não existe e precisa ser criado do zero.
+
+**Stack esperada**
+
+Seguir o mesmo padrão do orquestrador: NestJS + Prisma + `@golevelup/nestjs-rabbitmq`. Estrutura de módulos por bounded context (ver project-rules do orquestrador como referência).
+
+**Mensageria**
+
+| Exchange | Tipo | Routing key | Ação |
+|---|---|---|---|
+| `ticket.management` | topic | `ticket.assignment.requested` | **consumir** — recebe o pedido de atribuição |
+| `ticket.management` | topic | `ticket.assignment.completed` | **publicar** — notifica o orquestrador com o resultado |
+
+Configuração do consumer (equivalente ao que o orquestrador faz no listener):
+```
+exchange: ticket.management
+routingKey: ticket.assignment.requested
+queue: assignment.service.ticket.management
+queueOptions: { durable: true }
+```
+
+Payload recebido em `ticket.assignment.requested`:
+```json
+{ "ticketId": "string" }
+```
+
+Payload a publicar em `ticket.assignment.completed`:
+```json
+{ "ticketId": "string", "specialistId": "string" }
+```
+
+**O que deve ser feito**
+
+1. Criar o repositório `easy.ticket.assignment` com a estrutura base do NestJS (`nest new` ou copiar o scaffold do orquestrador)
+
+2. Criar o módulo `assignment` seguindo a estrutura:
+```
+src/modules/assignment/
+├── domain/
+│   ├── specialist.entity.ts         ← entidade do especialista
+│   ├── specialist.repository.ts     ← interface do repositório
+│   └── assignment.types.ts          ← tipos do domínio
+├── application/
+│   └── use-cases/
+│       └── assign-specialist.use-case.ts
+├── infra/
+│   ├── persistence/
+│   │   └── specialist.prisma.repository.ts
+│   └── messaging/
+│       ├── assignment-requested.listener.ts  ← consome ticket.assignment.requested
+│       └── assignment-completed.publisher.ts ← publica ticket.assignment.completed
+└── assignment.module.ts
+```
+
+3. Modelar o `Specialist` no Prisma com os campos mínimos:
+   - `id`, `name`, `available: Boolean`, `createdAt`, `updatedAt`
+
+4. Implementar o `AssignSpecialistUseCase`:
+   - Recebe o `ticketId`
+   - Busca um especialista disponível no banco (**regra de negócio a definir** — ver seção abaixo)
+   - Se encontrar: publica `ticket.assignment.completed { ticketId, specialistId }`
+   - Se não encontrar: loga e não publica — o job de reconciliação do orquestrador vai retentar (ver TASK-001)
+
+5. Implementar o listener `AssignmentRequestedListener` com `@RabbitSubscribe`:
+   - Consome `ticket.assignment.requested`
+   - Chama `AssignSpecialistUseCase.execute(ticketId)`
+
+6. Implementar o publisher `AssignmentCompletedPublisher`:
+   - Publica na exchange `ticket.management` com routing key `ticket.assignment.completed`
+
+7. Adicionar variáveis de ambiente:
+   - `DATABASE_URL` — connection string do banco próprio do serviço
+   - `RABBITMQ_URL` — mesma URL do orquestrador (mesma instância RabbitMQ)
+   - `PORT` — porta HTTP (sugerido: `3003`)
+
+**Regra de atribuição de especialista — a definir**
+
+A lógica para encontrar o especialista ainda não foi decidida. Algumas opções a discutir com o time antes de implementar:
+
+- **Round-robin** — atribui ao próximo especialista disponível em ordem circular
+- **Menor carga** — atribui ao especialista com menos tickets ativos no momento
+- **Aleatório entre disponíveis** — sorteia entre os especialistas com `available = true`
+- **Por especialidade** — o ticket carrega uma categoria e o especialista tem skills cadastradas
+
+A implementação deve ser isolada em uma classe de domínio (ex: `SpecialistAssignmentStrategy`) para facilitar a troca da estratégia sem alterar o use case.
+
+**Testes esperados**
+
+- `assign-specialist.use-case.spec.ts`:
+  - Publica `assignment.completed` quando encontra especialista disponível
+  - Não publica quando não há especialista disponível
+  - Loga quando não há especialista disponível
+
+- `assignment-requested.listener.spec.ts`:
+  - Chama o use case com o `ticketId` correto ao receber o evento
+  - Propaga erro se o use case lançar
+
+- `assignment-completed.publisher.spec.ts`:
+  - Publica na exchange correta com a routing key correta
+
+**Referências**
+- Padrão de publisher/listener do orquestrador: `src/modules/ticket/infra/messaging/`
+- ADR-003 do orquestrador: `docs/adrs/ADR-003-async-specialist-assignment-via-rabbitmq.md`
+- Exchange e filas já declaradas pelo orquestrador: `ticket.management` (topic)
