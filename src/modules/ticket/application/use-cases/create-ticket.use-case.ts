@@ -6,14 +6,12 @@ import type {
 import { TICKET_REPOSITORY } from '../../domain/ticket.repository';
 import type {
   ITicketServiceClient,
-  IAssignmentServiceClient,
+  IAssignmentEventPublisher,
 } from '../../domain/ticket.actions';
 import {
   TICKET_SERVICE_CLIENT,
-  ASSIGNMENT_SERVICE_CLIENT,
+  ASSIGNMENT_EVENT_PUBLISHER,
 } from '../../domain/ticket.actions';
-import type { TicketStateMachineUseCase } from './ticket-state-machine.use-case';
-import { TICKET_STATE_MACHINE_USE_CASE } from './ticket-state-machine.use-case';
 
 export const CREATE_TICKET_USE_CASE = Symbol('CREATE_TICKET_USE_CASE');
 
@@ -24,23 +22,14 @@ export class CreateTicketUseCase {
     private readonly ticketRepo: ITicketRepository,
     @Inject(TICKET_SERVICE_CLIENT)
     private readonly ticketServiceClient: ITicketServiceClient,
-    @Inject(ASSIGNMENT_SERVICE_CLIENT)
-    private readonly assignmentServiceClient: IAssignmentServiceClient,
-    @Inject(TICKET_STATE_MACHINE_USE_CASE)
-    private readonly stateMachine: TicketStateMachineUseCase,
+    @Inject(ASSIGNMENT_EVENT_PUBLISHER)
+    private readonly assignmentEventPublisher: IAssignmentEventPublisher,
   ) {}
 
   async execute(clientId: string): Promise<TicketEntity> {
     const { ticketId } = await this.ticketServiceClient.createTicket(clientId);
     const ticket = await this.ticketRepo.create({ ticketId, clientId });
-    // TODO: substituir por this.assignmentServiceClient.assignSpecialist(ticketId)
-    const specialistId = crypto.randomUUID();
-    await this.stateMachine.execute(
-      ticketId,
-      'SPECIALIST_ASSIGNED',
-      specialistId,
-    );
-
+    await this.assignmentEventPublisher.publishAssignmentRequested(ticketId);
     return ticket;
   }
 }

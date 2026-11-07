@@ -1,7 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import { TicketStateMachineUseCase } from '../ticket-state-machine.use-case';
 import { TicketEntity } from '../../../domain/ticket.repository';
-import { TicketActions } from '../../../domain/ticket.actions';
 import { SpecialistRequiredError } from '../../../../../common/errors/domain.errors';
 
 const makeTicket = (override?: Partial<TicketEntity>): TicketEntity => ({
@@ -15,15 +14,6 @@ const makeTicket = (override?: Partial<TicketEntity>): TicketEntity => ({
   ...override,
 });
 
-const makeActions = (): TicketActions => ({
-  assignSpecialist: { execute: jest.fn().mockResolvedValue(undefined) },
-  routeTicket: { execute: jest.fn().mockResolvedValue(undefined) },
-  repairCompleted: { execute: jest.fn().mockResolvedValue(undefined) },
-  reassignRequested: { execute: jest.fn().mockResolvedValue(undefined) },
-  surveySent: { execute: jest.fn().mockResolvedValue(undefined) },
-  surveyFailed: { execute: jest.fn().mockResolvedValue(undefined) },
-});
-
 const makeUseCase = (ticket: TicketEntity | null = makeTicket()) => {
   const ticketRepo = {
     findByTicketId: jest.fn().mockResolvedValue(ticket),
@@ -31,13 +21,25 @@ const makeUseCase = (ticket: TicketEntity | null = makeTicket()) => {
     create: jest.fn(),
   };
   const eventRepo = { save: jest.fn().mockResolvedValue(undefined) };
-  const actions = makeActions();
+  const assignSpecialist = { execute: jest.fn().mockResolvedValue(undefined) };
+  const routeTicket = { execute: jest.fn().mockResolvedValue(undefined) };
+  const repairCompleted = { execute: jest.fn().mockResolvedValue(undefined) };
+  const reassignRequested = { execute: jest.fn().mockResolvedValue(undefined) };
+  const surveySent = { execute: jest.fn().mockResolvedValue(undefined) };
+  const surveyFailed = { execute: jest.fn().mockResolvedValue(undefined) };
+
   const useCase = new TicketStateMachineUseCase(
     ticketRepo as any,
     eventRepo as any,
-    actions,
+    assignSpecialist as any,
+    routeTicket as any,
+    repairCompleted as any,
+    reassignRequested as any,
+    surveySent as any,
+    surveyFailed as any,
   );
-  return { useCase, ticketRepo, eventRepo, actions };
+
+  return { useCase, ticketRepo, eventRepo, assignSpecialist, routeTicket, repairCompleted, reassignRequested, surveySent, surveyFailed };
 };
 
 describe('TicketStateMachineUseCase', () => {
@@ -47,12 +49,12 @@ describe('TicketStateMachineUseCase', () => {
   });
 
   it('transitions CREATED → ASSIGNED and persists specialistId', async () => {
-    const { useCase, ticketRepo, eventRepo, actions } = makeUseCase();
+    const { useCase, ticketRepo, eventRepo, assignSpecialist } = makeUseCase();
 
     const result = await useCase.execute('ticket-1', 'SPECIALIST_ASSIGNED', 'specialist-99');
 
     expect(result).toEqual({ ticketId: 'ticket-1', from: 'CREATED', to: 'ASSIGNED' });
-    expect(actions.assignSpecialist.execute).toHaveBeenCalledTimes(1);
+    expect(assignSpecialist.execute).toHaveBeenCalledTimes(1);
     expect(ticketRepo.updateState).toHaveBeenCalledWith('ticket-1', 'ASSIGNED', 'specialist-99');
     expect(eventRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ fromState: 'CREATED', toState: 'ASSIGNED', triggeredBy: 'SPECIALIST_ASSIGNED' }),
@@ -75,14 +77,14 @@ describe('TicketStateMachineUseCase', () => {
   });
 
   it('REPAIR_COMPLETED encadeia SURVEY_SENT e retorna CLOSED', async () => {
-    const { useCase, ticketRepo, eventRepo, actions } = makeUseCase(
+    const { useCase, ticketRepo, eventRepo, surveySent } = makeUseCase(
       makeTicket({ currentState: 'ACCEPTED', specialistId: 'specialist-42' }),
     );
 
     const result = await useCase.execute('ticket-1', 'REPAIR_COMPLETED');
 
     expect(result.to).toBe('CLOSED');
-    expect(actions.surveySent.execute).toHaveBeenCalledTimes(1);
+    expect(surveySent.execute).toHaveBeenCalledTimes(1);
     expect(ticketRepo.updateState).toHaveBeenCalledWith('ticket-1', 'CLOSED');
     expect(eventRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ fromState: 'COMPLETED', toState: 'CLOSED', triggeredBy: 'SURVEY_SENT' }),
@@ -90,15 +92,15 @@ describe('TicketStateMachineUseCase', () => {
   });
 
   it('REPAIR_COMPLETED encadeia SURVEY_FAILED quando pesquisa falha e retorna NO_SURVEY sem erro', async () => {
-    const { useCase, ticketRepo, eventRepo, actions } = makeUseCase(
+    const { useCase, ticketRepo, eventRepo, surveySent, surveyFailed } = makeUseCase(
       makeTicket({ currentState: 'ACCEPTED', specialistId: 'specialist-42' }),
     );
-    actions.surveySent.execute = jest.fn().mockRejectedValue(new Error('survey service down'));
+    surveySent.execute = jest.fn().mockRejectedValue(new Error('survey service down'));
 
     const result = await useCase.execute('ticket-1', 'REPAIR_COMPLETED');
 
     expect(result.to).toBe('NO_SURVEY');
-    expect(actions.surveyFailed.execute).toHaveBeenCalledTimes(1);
+    expect(surveyFailed.execute).toHaveBeenCalledTimes(1);
     expect(ticketRepo.updateState).toHaveBeenCalledWith('ticket-1', 'NO_SURVEY');
     expect(eventRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ fromState: 'COMPLETED', toState: 'NO_SURVEY', triggeredBy: 'SURVEY_FAILED' }),

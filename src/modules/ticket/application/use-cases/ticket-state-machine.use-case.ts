@@ -10,8 +10,12 @@ import type { ITicketRepository } from '../../domain/ticket.repository';
 import { TICKET_REPOSITORY } from '../../domain/ticket.repository';
 import type { ITicketSagaEventRepository } from '../../domain/ticket-saga-event.repository';
 import { TICKET_SAGA_EVENT_REPOSITORY } from '../../domain/ticket-saga-event.repository';
-import type { TicketActions } from '../../domain/ticket.actions';
-import { TICKET_ACTIONS } from '../../domain/ticket.actions';
+import { AssignSpecialistAction } from '../../infra/actions/assign-specialist.action';
+import { RouteTicketAction } from '../../infra/actions/route-ticket.action';
+import { RepairCompletedAction } from '../../infra/actions/repair-completed.action';
+import { ReassignRequestedAction } from '../../infra/actions/reassign-requested.action';
+import { SurveySentAction } from '../../infra/actions/survey-sent.action';
+import { SurveyFailedAction } from '../../infra/actions/survey-failed.action';
 
 export interface SendEventResult {
   ticketId: string;
@@ -30,8 +34,12 @@ export class TicketStateMachineUseCase {
     private readonly ticketRepo: ITicketRepository,
     @Inject(TICKET_SAGA_EVENT_REPOSITORY)
     private readonly eventRepo: ITicketSagaEventRepository,
-    @Inject(TICKET_ACTIONS)
-    private readonly actions: TicketActions,
+    private readonly assignSpecialist: AssignSpecialistAction,
+    private readonly routeTicket: RouteTicketAction,
+    private readonly repairCompleted: RepairCompletedAction,
+    private readonly reassignRequested: ReassignRequestedAction,
+    private readonly surveySent: SurveySentAction,
+    private readonly surveyFailed: SurveyFailedAction,
   ) {}
 
   async execute(
@@ -55,12 +63,12 @@ export class TicketStateMachineUseCase {
     }
 
     const machine = new TicketStateMachine(ticket.currentState, ctx, {
-      onSpecialistAssigned: (c) => this.actions.assignSpecialist.execute(c),
-      onTicketRouted: (c) => this.actions.routeTicket.execute(c),
-      onRepairCompleted: (c) => this.actions.repairCompleted.execute(c),
-      onReassignRequested: (c) => this.actions.reassignRequested.execute(c),
-      onSurveySent: (c) => this.actions.surveySent.execute(c),
-      onSurveyFailed: (c) => this.actions.surveyFailed.execute(c),
+      onSpecialistAssigned: (c) => this.assignSpecialist.execute(c),
+      onTicketRouted: (c) => this.routeTicket.execute(c),
+      onRepairCompleted: (c) => this.repairCompleted.execute(c),
+      onReassignRequested: (c) => this.reassignRequested.execute(c),
+      onSurveySent: (c) => this.surveySent.execute(c),
+      onSurveyFailed: (c) => this.surveyFailed.execute(c),
     });
 
     const from = machine.getCurrentState();
