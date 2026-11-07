@@ -32,6 +32,7 @@ enum TicketSagaEvent {
 
 model Ticket {
   id           String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId     String          @unique @map("ticket_id") @db.VarChar(50)
   clientId     String          @map("client_id") @db.VarChar(50)
   specialistId String?         @map("specialist_id") @db.VarChar(50)
   currentState TicketSagaState @default(CREATED) @map("current_state")
