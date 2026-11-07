@@ -15,5 +15,19 @@ services:
       timeout: 5s
       retries: 5
 
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    environment:
+      RABBITMQ_DEFAULT_USER: easy_ticket
+      RABBITMQ_DEFAULT_PASS: easy_ticket
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
 volumes:
   pgdata:
