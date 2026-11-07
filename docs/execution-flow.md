@@ -9,127 +9,108 @@
 ### Sequência de arquivos chamados
 
 ```
-1. src/main.ts
-   └── ValidationPipe valida o body antes de chegar no controller
+1. src/modules/ticket/interface/ticket.controller.ts
+   └── create() recebe o DTO e chama createTicket.execute()
 
-2. src/modules/ticket/interface/dto/ticket.dto.ts
-   └── CreateTicketDto valida que clientId é string não vazia
+2. src/modules/ticket/application/use-cases/create-ticket.use-case.ts
+   └── execute():
+       a. chama TicketServiceHttpClient.createTicket(clientId)   ← HTTP pro Serviço de Ticket
+       b. recebe { ticketId }
+       c. chama ticketRepo.create({ ticketId, clientId })        ← salva contexto da saga
+       d. chama AssignmentServiceHttpClient.assignSpecialist()   ← HTTP pro Serviço de Atribuição
+       e. recebe { specialistId }
+       f. chama stateMachine.execute(ticketId, SPECIALIST_ASSIGNED, specialistId)
+       g. chama stateMachine.execute(ticketId, TICKET_ROUTED)
 
-3. src/modules/ticket/interface/ticket.controller.ts
-   └── método create() recebe o DTO e chama ticketRepo.create()
+3. src/modules/ticket/infra/clients/ticket-service.http-client.ts
+   └── POST {TICKET_SERVICE_URL}/tickets
 
-4. src/modules/ticket/application/ports/ticket.repository.ts
-   └── ITicketRepository.create() — contrato chamado pelo controller
+4. src/modules/ticket/infra/clients/assignment-service.http-client.ts
+   └── POST {ASSIGNMENT_SERVICE_URL}/assignments
+       TODO: tratar falha de atribuição (nenhum especialista disponível)
 
 5. src/modules/ticket/infra/persistence/ticket.prisma.repository.ts
-   └── TicketPrismaRepository.create() — executa INSERT no banco
-       currentState = CREATED (default do Prisma)
-
-6. prisma/schema.prisma
-   └── model Ticket — define a tabela e o default CREATED
+   └── create() — INSERT na tabela tickets com ticketId externo e currentState = CREATED
 ```
 
-**Resultado:** linha inserida na tabela `tickets` com `current_state = CREATED`
+**Resultado:** linha inserida em `tickets` com `current_state = CREATED`, depois transicionada para `ACCEPTED` via `SPECIALIST_ASSIGNED` → `TICKET_ROUTED`
 
 ---
 
-## 2. Disparar um evento — `POST /tickets/:id/events`
-
-```
-{ "event": "SPECIALIST_ASSIGNED" }
-```
+## 2. Concluir um ticket — `POST /tickets/:id/events { event: REPAIR_COMPLETED }`
 
 ### Sequência de arquivos chamados
 
 ```
-1. src/main.ts
-   └── ValidationPipe valida o body
+1. src/modules/ticket/interface/ticket.controller.ts
+   └── sendEvent() chama stateMachine.execute(ticketId, REPAIR_COMPLETED)
 
-2. src/modules/ticket/interface/dto/ticket.dto.ts
-   └── SendEventDto valida que event é um dos 6 valores válidos do array ticketSagaEvents
+2. src/modules/ticket/application/use-cases/ticket-state-machine.use-case.ts
+   └── execute():
+       a. findByTicketId(ticketId)
+       b. monta TicketSagaContext
+       c. instancia TicketStateMachine com estado atual
+       d. machine.send(REPAIR_COMPLETED) → ACCEPTED → COMPLETED
+       e. updateState(COMPLETED)
+       f. eventRepo.save({ ACCEPTED → COMPLETED })
+       g. chama sendSurvey() internamente
 
-3. src/modules/ticket/interface/ticket.controller.ts
-   └── método sendEvent() recebe id e DTO, chama stateMachine.execute()
+3. src/modules/ticket/domain/ticket-state-machine.ts
+   └── send(REPAIR_COMPLETED):
+       a. executa RepairCompletedAction
 
-4. src/modules/ticket/application/use-cases/ticket-state-machine.use-case.ts
-   └── execute() — orquestra tudo:
-       a. chama ticketRepo.findById(id)
-       b. monta o TicketSagaContext com os dados do ticket
-       c. instancia o TicketStateMachine com o estado atual
-       d. chama machine.send(event)
-       e. chama ticketRepo.updateState() com o novo estado
-       f. chama eventRepo.save() com o log da transição
+4. src/modules/ticket/infra/actions/ticket.actions.ts — RepairCompletedAction
+   └── chama TicketServiceHttpClient.completeTicket(ticketId)   ← HTTP síncrono pro Serviço de Ticket
+       Serviço de Ticket atualiza banco + publica na fila de analytics (transparente pro orquestrador)
 
-5. src/modules/ticket/application/ports/ticket.repository.ts
-   └── ITicketRepository.findById() — busca o ticket (passo 4a)
-
-6. src/modules/ticket/infra/persistence/ticket.prisma.repository.ts
-   └── TicketPrismaRepository.findById() — SELECT no banco
-
-7. src/modules/ticket/domain/ticket-saga.types.ts
-   └── TicketSagaContext — shape do contexto montado com os dados do ticket
-
-8. src/modules/ticket/domain/ticket-state-machine.ts
-   └── TicketStateMachine.send(event):
-       a. consulta this.transitions[currentState][event]
-       b. se não existir → lança erro (transição inválida), nada é persistido
-       c. muda currentState para o target
-       d. executa a action correspondente
-       e. se a action falhar → rollback do estado, lança erro
-
-9. src/modules/ticket/application/ports/ticket.actions.ts
-   └── TicketActions — interface da action executada (passo 8d)
-
-10. src/modules/ticket/infra/actions/ticket.actions.ts
-    └── ex: AssignSpecialistAction.execute() — stub com Logger por enquanto
-
-11. src/modules/ticket/infra/persistence/ticket.prisma.repository.ts
-    └── TicketPrismaRepository.updateState() — UPDATE current_state no banco (passo 4e)
-
-12. src/modules/ticket/application/ports/ticket-saga-event.repository.ts
-    └── ITicketSagaEventRepository.save() — contrato do log (passo 4f)
-
-13. src/modules/ticket/infra/persistence/ticket-saga-event.prisma.repository.ts
-    └── TicketSagaEventPrismaRepository.save() — INSERT na tabela ticket_saga_events
-
-14. prisma/schema.prisma
-    └── model TicketSagaEventLog — registra fromState, toState, triggeredBy, errorMessage
+5. src/modules/ticket/application/use-cases/ticket-state-machine.use-case.ts — sendSurvey()
+   └── tenta machine.send(SURVEY_SENT):
+       ✓ sucesso:
+           - SurveySentAction → SurveyServiceHttpClient.sendSurvey()  ← HTTP síncrono pro Serviço de Pesquisa
+           - updateState(CLOSED)
+           - eventRepo.save({ COMPLETED → CLOSED })
+           - retorna { to: CLOSED }
+       ✗ falha:
+           - machine.send(SURVEY_FAILED)
+           - SurveyFailedAction → loga (fila de retry pendente)
+           - updateState(NO_SURVEY)
+           - eventRepo.save({ COMPLETED → NO_SURVEY })
+           - retorna { to: NO_SURVEY }  ← sem erro pro app móvel
 ```
 
-**Resultado:** `current_state` atualizado na tabela `tickets` + nova linha em `ticket_saga_events`
+**Resultado:** ticket em `CLOSED` (caso feliz) ou `NO_SURVEY` (falha na pesquisa). App móvel sempre recebe resposta.
 
 ---
 
-## Resumo visual
+## Resumo visual — fluxo de conclusão
 
 ```
-HTTP Request
+App móvel
+    │ POST /tickets/:id/events { REPAIR_COMPLETED }
+    ▼
+TicketController
     │
     ▼
-ValidationPipe (main.ts)
+TicketStateMachineUseCase
+    │
+    ├── findByTicketId ──────────────▶ TicketPrismaRepository ──▶ Postgres
+    │
+    ├── TicketStateMachine.send(REPAIR_COMPLETED)
+    │       └── RepairCompletedAction
+    │               └── TicketServiceHttpClient ──▶ Serviço de Ticket
+    │                                                    └── publica analytics (assíncrono)
+    │
+    ├── updateState(COMPLETED) ──────▶ Postgres
+    ├── eventRepo.save() ────────────▶ Postgres
+    │
+    └── sendSurvey()
+            ├── [sucesso] SurveySentAction
+            │       └── SurveyServiceHttpClient ──▶ Serviço de Pesquisa
+            │               └── salva + envia e-mail
+            │
+            └── [falha] SurveyFailedAction
+                    └── loga (retry via fila — pendente)
     │
     ▼
-TicketController (interface/)
-    │
-    ▼
-TicketStateMachineUseCase (application/)
-    │
-    ├── findById ──────────────────▶ TicketPrismaRepository (infra/persistence)
-    │                                        │
-    │                                        ▼
-    │                                     Postgres
-    │
-    ├── TicketStateMachine (domain/) ◀── monta contexto
-    │       │
-    │       └── action ────────────▶ AssignSpecialistAction (infra/actions) [stub]
-    │
-    ├── updateState ───────────────▶ TicketPrismaRepository (infra/persistence)
-    │                                        │
-    │                                        ▼
-    │                                     Postgres
-    │
-    └── save ──────────────────────▶ TicketSagaEventPrismaRepository (infra/persistence)
-                                             │
-                                             ▼
-                                          Postgres
+App móvel recebe resposta (CLOSED ou NO_SURVEY)
 ```
