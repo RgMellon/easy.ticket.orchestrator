@@ -3,7 +3,7 @@ import { PrismaService } from '../../../../infra/database/prisma.service';
 import type { ITicketRepository, TicketEntity } from '../../domain/ticket.repository';
 import type { TicketSagaState } from '../../domain/ticket-saga.types';
 
-const toEntity = (raw: any): TicketEntity => ({
+const toEntity = (raw: { id: string; ticketId: string; clientId: string; specialistId: string | null; currentState: TicketSagaState; createdAt: Date; updatedAt: Date }): TicketEntity => ({
   ...raw,
   specialistId: raw.specialistId ?? undefined,
 });
@@ -12,18 +12,20 @@ const toEntity = (raw: any): TicketEntity => ({
 export class TicketPrismaRepository implements ITicketRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: { clientId: string }): Promise<TicketEntity> {
-    return toEntity(await this.prisma.ticket.create({ data }));
+  async create(data: { ticketId: string; clientId: string }): Promise<TicketEntity> {
+    return toEntity(
+      await this.prisma.ticket.create({ data: { ticketId: data.ticketId, clientId: data.clientId } }),
+    );
   }
 
-  async findById(id: string): Promise<TicketEntity | null> {
-    const raw = await this.prisma.ticket.findUnique({ where: { id } });
+  async findByTicketId(ticketId: string): Promise<TicketEntity | null> {
+    const raw = await this.prisma.ticket.findUnique({ where: { ticketId } });
     return raw ? toEntity(raw) : null;
   }
 
-  async updateState(id: string, state: TicketSagaState, specialistId?: string): Promise<void> {
+  async updateState(ticketId: string, state: TicketSagaState, specialistId?: string): Promise<void> {
     await this.prisma.ticket.update({
-      where: { id },
+      where: { ticketId },
       data: { currentState: state, ...(specialistId && { specialistId }) },
     });
   }

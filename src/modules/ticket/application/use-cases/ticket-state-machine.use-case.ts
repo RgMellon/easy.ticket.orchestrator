@@ -40,7 +40,8 @@ export class TicketStateMachineUseCase {
     specialistId?: string,
     reason?: string,
   ): Promise<SendEventResult> {
-    const ticket = await this.ticketRepo.findById(ticketId);
+    const ticket = await this.ticketRepo.findByTicketId(ticketId);
+
     if (!ticket) throw new NotFoundException(`Ticket ${ticketId} not found`);
 
     const ctx: TicketSagaContext = {
@@ -67,13 +68,47 @@ export class TicketStateMachineUseCase {
 
     await this.ticketRepo.updateState(ticketId, to, ctx.specialistId);
     await this.eventRepo.save({
-      ticketId,
+      ticketId: ticket.id,
       fromState: from,
       toState: to,
       triggeredBy: event,
       errorMessage: ctx.errorMessage,
     });
 
+    if (event === 'REPAIR_COMPLETED') {
+      return this.sendSurvey(ticketId, ticket.id, machine, ctx);
+    }
+
     return { ticketId, from, to };
+  }
+
+  private async sendSurvey(
+    ticketId: string,
+    internalId: string,
+    machine: TicketStateMachine,
+    ctx: TicketSagaContext,
+  ): Promise<SendEventResult> {
+    const from = machine.getCurrentState();
+    try {
+      const to = await machine.send('SURVEY_SENT');
+      await this.ticketRepo.updateState(ticketId, to);
+      await this.eventRepo.save({
+        ticketId: internalId,
+        fromState: from,
+        toState: to,
+        triggeredBy: 'SURVEY_SENT',
+      });
+      return { ticketId, from, to };
+    } catch {
+      const to = await machine.send('SURVEY_FAILED');
+      await this.ticketRepo.updateState(ticketId, to);
+      await this.eventRepo.save({
+        ticketId: internalId,
+        fromState: from,
+        toState: to,
+        triggeredBy: 'SURVEY_FAILED',
+      });
+      return { ticketId, from, to };
+    }
   }
 }

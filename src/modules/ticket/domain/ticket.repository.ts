@@ -2,6 +2,7 @@ import { TicketSagaState } from './ticket-saga.types';
 
 export interface TicketEntity {
   id: string;
+  ticketId: string;
   clientId: string;
   specialistId?: string;
   currentState: TicketSagaState;
@@ -10,10 +11,10 @@ export interface TicketEntity {
 }
 
 export interface ITicketRepository {
-  create(data: { clientId: string }): Promise<TicketEntity>;
-  findById(id: string): Promise<TicketEntity | null>;
+  create(data: { ticketId: string; clientId: string }): Promise<TicketEntity>;
+  findByTicketId(ticketId: string): Promise<TicketEntity | null>;
   updateState(
-    id: string,
+    ticketId: string,
     state: TicketSagaState,
     specialistId?: string,
   ): Promise<void>;
