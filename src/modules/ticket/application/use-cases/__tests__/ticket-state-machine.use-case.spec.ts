@@ -5,7 +5,8 @@ import { TicketActions } from '../../../domain/ticket.actions';
 import { SpecialistRequiredError } from '../../../../../common/errors/domain.errors';
 
 const makeTicket = (override?: Partial<TicketEntity>): TicketEntity => ({
-  id: 'ticket-1',
+  id: 'saga-1',
+  ticketId: 'ticket-1',
   clientId: 'client-1',
   specialistId: undefined,
   currentState: 'CREATED',
@@ -25,7 +26,7 @@ const makeActions = (): TicketActions => ({
 
 const makeUseCase = (ticket: TicketEntity | null = makeTicket()) => {
   const ticketRepo = {
-    findById: jest.fn().mockResolvedValue(ticket),
+    findByTicketId: jest.fn().mockResolvedValue(ticket),
     updateState: jest.fn().mockResolvedValue(undefined),
     create: jest.fn(),
   };
@@ -71,6 +72,37 @@ describe('TicketStateMachineUseCase', () => {
     await useCase.execute('ticket-1', 'REPAIR_COMPLETED');
 
     expect(ticketRepo.updateState).toHaveBeenCalledWith('ticket-1', 'COMPLETED', 'specialist-42');
+  });
+
+  it('REPAIR_COMPLETED encadeia SURVEY_SENT e retorna CLOSED', async () => {
+    const { useCase, ticketRepo, eventRepo, actions } = makeUseCase(
+      makeTicket({ currentState: 'ACCEPTED', specialistId: 'specialist-42' }),
+    );
+
+    const result = await useCase.execute('ticket-1', 'REPAIR_COMPLETED');
+
+    expect(result.to).toBe('CLOSED');
+    expect(actions.surveySent.execute).toHaveBeenCalledTimes(1);
+    expect(ticketRepo.updateState).toHaveBeenCalledWith('ticket-1', 'CLOSED');
+    expect(eventRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ fromState: 'COMPLETED', toState: 'CLOSED', triggeredBy: 'SURVEY_SENT' }),
+    );
+  });
+
+  it('REPAIR_COMPLETED encadeia SURVEY_FAILED quando pesquisa falha e retorna NO_SURVEY sem erro', async () => {
+    const { useCase, ticketRepo, eventRepo, actions } = makeUseCase(
+      makeTicket({ currentState: 'ACCEPTED', specialistId: 'specialist-42' }),
+    );
+    actions.surveySent.execute = jest.fn().mockRejectedValue(new Error('survey service down'));
+
+    const result = await useCase.execute('ticket-1', 'REPAIR_COMPLETED');
+
+    expect(result.to).toBe('NO_SURVEY');
+    expect(actions.surveyFailed.execute).toHaveBeenCalledTimes(1);
+    expect(ticketRepo.updateState).toHaveBeenCalledWith('ticket-1', 'NO_SURVEY');
+    expect(eventRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ fromState: 'COMPLETED', toState: 'NO_SURVEY', triggeredBy: 'SURVEY_FAILED' }),
+    );
   });
 
   it('transitions ACCEPTED → REASSIGN and persists reason', async () => {

@@ -121,7 +121,7 @@ describe('TicketStateMachine', () => {
         const machine = new TicketStateMachine(state, baseContext(), makeActions());
 
         await expect(machine.send(event)).rejects.toThrow(
-          `Invalid transition: cannot fire '${event}' from state '${state}'`,
+          `Cannot fire '${event}' from state '${state}'`,
         );
       },
     );
@@ -135,7 +135,7 @@ describe('TicketStateMachine', () => {
       const machine = new TicketStateMachine('CREATED', baseContext(), actions);
 
       await expect(machine.send('SPECIALIST_ASSIGNED')).rejects.toThrow(
-        "State machine execution failed on 'SPECIALIST_ASSIGNED': db error",
+        "State machine failed on 'SPECIALIST_ASSIGNED': db error",
       );
 
       expect(machine.getCurrentState()).toBe('CREATED');
