@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
-import type { IAssignmentEventPublisher } from '../../domain/ticket.actions';
+import type { IAssignmentEventPublisher } from '../../domain/actions/assignment-event.publisher';
 
 export const TICKET_MANAGEMENT_EXCHANGE = 'ticket.management';
 
@@ -11,7 +11,13 @@ export class AssignmentEventPublisher implements IAssignmentEventPublisher {
   constructor(private readonly amqp: AmqpConnection) {}
 
   async publishAssignmentRequested(ticketId: string): Promise<void> {
-    this.logger.log(`Publishing ticket.assignment.requested for ticket=${ticketId}`);
-    await this.amqp.publish(TICKET_MANAGEMENT_EXCHANGE, 'ticket.assignment.requested', { ticketId });
+    this.logger.log(
+      `Publishing ticket.assignment.requested for ticket=${ticketId}`,
+    );
+    await this.amqp.publish(
+      TICKET_MANAGEMENT_EXCHANGE,
+      'ticket.assignment.requested',
+      { ticketId },
+    );
   }
 }

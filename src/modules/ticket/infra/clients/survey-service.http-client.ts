@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
-import type { ISurveyServiceClient } from '../../domain/ticket.actions';
+import type { ISurveyServiceClient } from '../../domain/actions/survey-service.client';
 
 @Injectable()
 export class SurveyServiceHttpClient implements ISurveyServiceClient {

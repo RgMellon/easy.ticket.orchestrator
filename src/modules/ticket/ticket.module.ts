@@ -16,7 +16,7 @@ import { TICKET_SAGA_EVENT_REPOSITORY } from './domain/ticket-saga-event.reposit
 import {
   TICKET_SERVICE_CLIENT,
   ASSIGNMENT_EVENT_PUBLISHER,
-} from './domain/ticket.actions';
+} from './domain/actions';
 import { TicketPrismaRepository } from './infra/persistence/ticket.prisma.repository';
 import { TicketSagaEventPrismaRepository } from './infra/persistence/ticket-saga-event.prisma.repository';
 import { AssignSpecialistAction } from './infra/actions/assign-specialist.action';

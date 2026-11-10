@@ -4,14 +4,10 @@ import type {
   ITicketRepository,
 } from '../../domain/ticket.repository';
 import { TICKET_REPOSITORY } from '../../domain/ticket.repository';
-import type {
-  ITicketServiceClient,
-  IAssignmentEventPublisher,
-} from '../../domain/ticket.actions';
-import {
-  TICKET_SERVICE_CLIENT,
-  ASSIGNMENT_EVENT_PUBLISHER,
-} from '../../domain/ticket.actions';
+import type { ITicketServiceClient } from '../../domain/actions/ticket-service.client';
+import { TICKET_SERVICE_CLIENT } from '../../domain/actions/ticket-service.client';
+import type { IAssignmentEventPublisher } from '../../domain/actions/assignment-event.publisher';
+import { ASSIGNMENT_EVENT_PUBLISHER } from '../../domain/actions/assignment-event.publisher';
 
 export const CREATE_TICKET_USE_CASE = Symbol('CREATE_TICKET_USE_CASE');
 

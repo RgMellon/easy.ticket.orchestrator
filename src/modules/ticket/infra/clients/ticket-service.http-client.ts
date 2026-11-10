@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
-import type { ITicketServiceClient } from '../../domain/ticket.actions';
+import type { ITicketServiceClient } from '../../domain/actions/ticket-service.client';
 
 @Injectable()
 export class TicketServiceHttpClient implements ITicketServiceClient {

@@ -1,5 +1,7 @@
 # Fluxo de Execução — Criação e Transição de Ticket
 
+> **Estrutura de domínio:** as interfaces de ports (`ITicketServiceClient`, `ISurveyServiceClient`, `IAssignmentEventPublisher`) e seus tokens de injeção vivem em `src/modules/ticket/domain/actions/`, cada uma em seu próprio arquivo, re-exportadas via `index.ts`.
+
 ## 1. Criar um ticket — `POST /tickets`
 
 ### Fluxo síncrono — criação e publicação do evento

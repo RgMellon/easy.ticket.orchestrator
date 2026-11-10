@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { TicketSagaContext } from '../../domain/ticket-saga.types';
-import type { ITicketServiceClient } from '../../domain/ticket.actions';
-import { TICKET_SERVICE_CLIENT } from '../../domain/ticket.actions';
+import type { ITicketServiceClient } from '../../domain/actions/ticket-service.client';
+import { TICKET_SERVICE_CLIENT } from '../../domain/actions/ticket-service.client';
 
 @Injectable()
 export class RepairCompletedAction {
@@ -17,3 +17,6 @@ export class RepairCompletedAction {
     await this.ticketServiceClient.completeTicket(ctx.ticketId);
   }
 }
+
+// Continuar do RepairCompleted da action, ver o que ta fazendo
+// Validart tbm o service de assignment

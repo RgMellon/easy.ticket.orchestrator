@@ -1,6 +1,6 @@
 import { Controller, Inject, Param, Post, Body } from '@nestjs/common';
-import type { IAssignmentEventPublisher } from '../domain/ticket.actions';
-import { ASSIGNMENT_EVENT_PUBLISHER } from '../domain/ticket.actions';
+import type { IAssignmentEventPublisher } from '../domain/actions/assignment-event.publisher';
+import { ASSIGNMENT_EVENT_PUBLISHER } from '../domain/actions/assignment-event.publisher';
 
 @Controller('internal/tickets')
 export class TicketInternalController {
