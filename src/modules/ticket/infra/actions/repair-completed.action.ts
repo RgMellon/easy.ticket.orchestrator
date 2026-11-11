@@ -13,10 +13,9 @@ export class RepairCompletedAction {
   ) {}
 
   async execute(ctx: TicketSagaContext): Promise<void> {
-    this.logger.log(`Repair completed for ticket=${ctx.ticketId}`);
-    await this.ticketServiceClient.completeTicket(ctx.ticketId);
+    this.logger.log(`Repair completed for ticket=${ctx.externalTicketId}`);
+    await this.ticketServiceClient.completeTicket(ctx.externalTicketId);
   }
 }
 
-// Continuar do RepairCompleted da action, ver o que ta fazendo
 // Validart tbm o service de assignment

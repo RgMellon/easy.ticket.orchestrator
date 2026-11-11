@@ -20,6 +20,7 @@ export type TicketSagaEvent = (typeof ticketSagaEvents)[number];
 
 export interface TicketSagaContext {
   ticketId: string;
+  externalTicketId: string;
   clientId: string;
   specialistId?: string;
   errorMessage?: string;
