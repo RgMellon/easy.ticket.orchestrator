@@ -5,8 +5,11 @@ import { TicketSagaContext } from '../../domain/ticket-saga.types';
 export class SurveySentAction {
   private readonly logger = new Logger(SurveySentAction.name);
 
-  async execute(ctx: TicketSagaContext): Promise<void> {
-    this.logger.log(`Survey queued for ticket=${ctx.ticketId} client=${ctx.clientId}`);
+  execute(ctx: TicketSagaContext): Promise<void> {
+    this.logger.log(
+      `Survey queued for ticket=${ctx.ticketId} client=${ctx.clientId}`,
+    );
     // TODO: publicar na fila para o MS de pesquisa consumir
+    return Promise.resolve();
   }
 }

@@ -1,8 +1,6 @@
 import { TicketStateMachine } from '../ticket-state-machine';
 import { TicketSagaContext } from '../ticket-saga.types';
 
-const noop = jest.fn().mockResolvedValue(undefined);
-
 const makeActions = () => ({
   onSpecialistAssigned: jest.fn().mockResolvedValue(undefined),
   onTicketRouted: jest.fn().mockResolvedValue(undefined),
@@ -14,6 +12,7 @@ const makeActions = () => ({
 
 const baseContext = (): TicketSagaContext => ({
   ticketId: 'ticket-1',
+  externalTicketId: 'ext-ticket-1',
   clientId: 'client-1',
 });
 
@@ -31,7 +30,11 @@ describe('TicketStateMachine', () => {
 
     it('ASSIGNED → ACCEPTED via TICKET_ROUTED', async () => {
       const actions = makeActions();
-      const machine = new TicketStateMachine('ASSIGNED', baseContext(), actions);
+      const machine = new TicketStateMachine(
+        'ASSIGNED',
+        baseContext(),
+        actions,
+      );
 
       const to = await machine.send('TICKET_ROUTED');
 
@@ -41,7 +44,11 @@ describe('TicketStateMachine', () => {
 
     it('ACCEPTED → COMPLETED via REPAIR_COMPLETED', async () => {
       const actions = makeActions();
-      const machine = new TicketStateMachine('ACCEPTED', baseContext(), actions);
+      const machine = new TicketStateMachine(
+        'ACCEPTED',
+        baseContext(),
+        actions,
+      );
 
       const to = await machine.send('REPAIR_COMPLETED');
 
@@ -50,7 +57,11 @@ describe('TicketStateMachine', () => {
 
     it('COMPLETED → CLOSED via SURVEY_SENT', async () => {
       const actions = makeActions();
-      const machine = new TicketStateMachine('COMPLETED', baseContext(), actions);
+      const machine = new TicketStateMachine(
+        'COMPLETED',
+        baseContext(),
+        actions,
+      );
 
       const to = await machine.send('SURVEY_SENT');
 
@@ -61,9 +72,16 @@ describe('TicketStateMachine', () => {
   describe('reassign path: ACCEPTED → REASSIGN → ASSIGNED', () => {
     it('ACCEPTED → REASSIGN via REASSIGN_REQUESTED', async () => {
       const actions = makeActions();
-      const machine = new TicketStateMachine('ACCEPTED', baseContext(), actions);
+      const machine = new TicketStateMachine(
+        'ACCEPTED',
+        baseContext(),
+        actions,
+      );
 
-      const to = await machine.send('REASSIGN_REQUESTED', 'specialist unavailable');
+      const to = await machine.send(
+        'REASSIGN_REQUESTED',
+        'specialist unavailable',
+      );
 
       expect(to).toBe('REASSIGN');
       expect(actions.onReassignRequested).toHaveBeenCalledTimes(1);
@@ -71,7 +89,11 @@ describe('TicketStateMachine', () => {
 
     it('REASSIGN → ASSIGNED via SPECIALIST_ASSIGNED', async () => {
       const actions = makeActions();
-      const machine = new TicketStateMachine('REASSIGN', baseContext(), actions);
+      const machine = new TicketStateMachine(
+        'REASSIGN',
+        baseContext(),
+        actions,
+      );
 
       const to = await machine.send('SPECIALIST_ASSIGNED');
 
@@ -83,9 +105,16 @@ describe('TicketStateMachine', () => {
   describe('survey failure path: COMPLETED → NO_SURVEY → CLOSED', () => {
     it('COMPLETED → NO_SURVEY via SURVEY_FAILED', async () => {
       const actions = makeActions();
-      const machine = new TicketStateMachine('COMPLETED', baseContext(), actions);
+      const machine = new TicketStateMachine(
+        'COMPLETED',
+        baseContext(),
+        actions,
+      );
 
-      const to = await machine.send('SURVEY_FAILED', 'survey service unavailable');
+      const to = await machine.send(
+        'SURVEY_FAILED',
+        'survey service unavailable',
+      );
 
       expect(to).toBe('NO_SURVEY');
       expect(actions.onSurveyFailed).toHaveBeenCalledTimes(1);
@@ -93,7 +122,11 @@ describe('TicketStateMachine', () => {
 
     it('NO_SURVEY → CLOSED via SURVEY_SENT (retry)', async () => {
       const actions = makeActions();
-      const machine = new TicketStateMachine('NO_SURVEY', baseContext(), actions);
+      const machine = new TicketStateMachine(
+        'NO_SURVEY',
+        baseContext(),
+        actions,
+      );
 
       const to = await machine.send('SURVEY_SENT');
 
@@ -118,7 +151,11 @@ describe('TicketStateMachine', () => {
     it.each(invalidCases)(
       'throws on $event from $state',
       async ({ state, event }) => {
-        const machine = new TicketStateMachine(state, baseContext(), makeActions());
+        const machine = new TicketStateMachine(
+          state,
+          baseContext(),
+          makeActions(),
+        );
 
         await expect(machine.send(event)).rejects.toThrow(
           `Cannot fire '${event}' from state '${state}'`,

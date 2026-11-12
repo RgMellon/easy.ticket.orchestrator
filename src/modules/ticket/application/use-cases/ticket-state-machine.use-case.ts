@@ -94,7 +94,7 @@ export class TicketStateMachineUseCase {
     this.logger.log({ ticketId, event, from, to, msg: 'state updated' });
 
     if (event === 'REPAIR_COMPLETED') {
-      return this.sendSurvey(ticketId, ticket.id, machine, ctx);
+      return this.sendSurvey(ticketId, ticket.id, machine);
     }
 
     return { ticketId, from, to };
@@ -118,7 +118,6 @@ export class TicketStateMachineUseCase {
     ticketId: string,
     internalId: string,
     machine: TicketStateMachine,
-    ctx: TicketSagaContext,
   ): Promise<SendEventResult> {
     const from = machine.getCurrentState();
     try {

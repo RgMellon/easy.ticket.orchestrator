@@ -11,14 +11,18 @@ export class TicketServiceHttpClient implements ITicketServiceClient {
 
   async createTicket(clientId: string): Promise<{ ticketId: string }> {
     this.logger.log(`Creating ticket for clientId=${clientId}`);
-    const { data } = await this.client.post<{ id: string }>('/tickets', { clientId });
+    const { data } = await this.client.post<{ id: string }>('/tickets', {
+      clientId,
+    });
     this.logger.log(`Ticket service response: ${JSON.stringify(data)}`);
     return { ticketId: data.id };
   }
 
   async completeTicket(ticketId: string): Promise<void> {
     this.logger.log(`Completing ticket=${ticketId}`);
-    const { data } = await this.client.patch(`/tickets/${ticketId}/complete`);
+    const { data } = await this.client.patch<unknown>(
+      `/tickets/${ticketId}/complete`,
+    );
     this.logger.log(`Ticket service response: ${JSON.stringify(data)}`);
   }
 }

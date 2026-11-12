@@ -30,8 +30,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       status,
       error: body.error,
       message: body.message,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
       ...(status === HttpStatus.INTERNAL_SERVER_ERROR && {
-        originalError: exception instanceof Error ? exception.message : String(exception),
+        originalError:
+          exception instanceof Error ? exception.message : String(exception),
         stack: exception instanceof Error ? exception.stack : undefined,
       }),
     });

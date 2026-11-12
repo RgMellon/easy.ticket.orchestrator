@@ -46,8 +46,8 @@ Tickets que permanecerem em `CREATED` por mais de X minutos sem transição são
 
 1. Busca tickets em `CREATED` com `updatedAt < agora - threshold`
 2. Republica o evento `ticket.assignment.requested` para cada um
-3. Incrementa `retryCount` no ticket
-4. Ao atingir `MAX_RETRIES`, move o ticket para um estado de alerta e notifica a operação
+3. Registra a tentativa em `TicketReconciliationLog` (ver ADR-004)
+4. Ao atingir `MAX_RETRIES` (contado via registros no log), emite alerta estruturado
 
 Isso garante recuperação automática de falhas transitórias no serviço de assignment, independente do broker.
 

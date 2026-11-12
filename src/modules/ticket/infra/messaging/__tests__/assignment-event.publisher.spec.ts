@@ -1,4 +1,7 @@
-import { AssignmentEventPublisher, TICKET_MANAGEMENT_EXCHANGE } from '../assignment-event.publisher';
+import {
+  AssignmentEventPublisher,
+  TICKET_MANAGEMENT_EXCHANGE,
+} from '../assignment-event.publisher';
 
 const makePublisher = () => {
   const amqp = { publish: jest.fn().mockResolvedValue(undefined) };

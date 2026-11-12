@@ -39,7 +39,8 @@ model Ticket {
   createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz
   updatedAt    DateTime        @updatedAt @map("updated_at") @db.Timestamptz
 
-  sagaEvents TicketSagaEventLog[]
+  sagaEvents          TicketSagaEventLog[]
+  reconciliationLogs  TicketReconciliationLog[]
 
   @@map("tickets")
 }
@@ -56,4 +57,16 @@ model TicketSagaEventLog {
   ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@map("ticket_saga_events")
+}
+
+model TicketReconciliationLog {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId      String   @map("ticket_id") @db.Uuid
+  attemptNumber Int      @map("attempt_number")
+  retriedAt     DateTime @default(now()) @map("retried_at") @db.Timestamptz
+  reason        String
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@map("ticket_reconciliation_logs")
 }

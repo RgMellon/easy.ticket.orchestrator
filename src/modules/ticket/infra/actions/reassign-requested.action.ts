@@ -5,9 +5,10 @@ import { TicketSagaContext } from '../../domain/ticket-saga.types';
 export class ReassignRequestedAction {
   private readonly logger = new Logger(ReassignRequestedAction.name);
 
-  async execute(ctx: TicketSagaContext): Promise<void> {
+  execute(ctx: TicketSagaContext): Promise<void> {
     this.logger.log(
       `Reassign requested for ticket=${ctx.ticketId} reason=${ctx.errorMessage}`,
     );
+    return Promise.resolve();
   }
 }

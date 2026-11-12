@@ -4,6 +4,7 @@ import { Inject } from '@nestjs/common';
 import type { TicketStateMachineUseCase } from '../../application/use-cases/ticket-state-machine.use-case';
 import { TICKET_STATE_MACHINE_USE_CASE } from '../../application/use-cases/ticket-state-machine.use-case';
 import { TICKET_MANAGEMENT_EXCHANGE } from './assignment-event.publisher';
+import type { TicketSagaEvent } from '../../domain/ticket-saga.types';
 
 interface AssignmentCompletedPayload {
   ticketId: string;
@@ -25,8 +26,16 @@ export class AssignmentEventListener {
     queue: 'orchestrator.ticket.management',
     queueOptions: { durable: true },
   })
-  async handleAssignmentCompleted(payload: AssignmentCompletedPayload): Promise<void> {
-    this.logger.log(`Received ticket.assignment.completed for ticket=${payload.ticketId}`);
-    await this.stateMachine.execute(payload.ticketId, 'SPECIALIST_ASSIGNED', payload.specialistId);
+  async handleAssignmentCompleted(
+    payload: AssignmentCompletedPayload,
+  ): Promise<void> {
+    this.logger.log(
+      `Received ticket.assignment.completed for ticket=${payload.ticketId}`,
+    );
+    await this.stateMachine.execute(
+      payload.ticketId,
+      'SPECIALIST_ASSIGNED' satisfies TicketSagaEvent,
+      payload.specialistId,
+    );
   }
 }

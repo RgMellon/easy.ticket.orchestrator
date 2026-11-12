@@ -11,14 +11,21 @@ import {
   CreateTicketUseCase,
   CREATE_TICKET_USE_CASE,
 } from './application/use-cases/create-ticket.use-case';
+import {
+  ReconcileStuckTicketsUseCase,
+  RECONCILE_STUCK_TICKETS_USE_CASE,
+} from './application/use-cases/reconcile-stuck-tickets.use-case';
+import { ReconcileStuckTicketsCron } from './application/use-cases/reconcile-stuck-tickets.cron';
 import { TICKET_REPOSITORY } from './domain/ticket.repository';
 import { TICKET_SAGA_EVENT_REPOSITORY } from './domain/ticket-saga-event.repository';
+import { RECONCILIATION_REPOSITORY } from './domain/reconciliation.repository';
 import {
   TICKET_SERVICE_CLIENT,
   ASSIGNMENT_EVENT_PUBLISHER,
 } from './domain/actions';
 import { TicketPrismaRepository } from './infra/persistence/ticket.prisma.repository';
 import { TicketSagaEventPrismaRepository } from './infra/persistence/ticket-saga-event.prisma.repository';
+import { ReconciliationPrismaRepository } from './infra/persistence/reconciliation.prisma.repository';
 import { AssignSpecialistAction } from './infra/actions/assign-specialist.action';
 import { RouteTicketAction } from './infra/actions/route-ticket.action';
 import { RepairCompletedAction } from './infra/actions/repair-completed.action';
@@ -56,6 +63,7 @@ import { AssignmentEventListener } from './infra/messaging/assignment-event.list
     SurveyFailedAction,
     AssignmentEventPublisher,
     AssignmentEventListener,
+    ReconcileStuckTicketsCron,
     { provide: TICKET_SERVICE_CLIENT, useClass: TicketServiceHttpClient },
     { provide: ASSIGNMENT_EVENT_PUBLISHER, useClass: AssignmentEventPublisher },
     { provide: TICKET_REPOSITORY, useClass: TicketPrismaRepository },
@@ -63,10 +71,18 @@ import { AssignmentEventListener } from './infra/messaging/assignment-event.list
       provide: TICKET_SAGA_EVENT_REPOSITORY,
       useClass: TicketSagaEventPrismaRepository,
     },
+    {
+      provide: RECONCILIATION_REPOSITORY,
+      useClass: ReconciliationPrismaRepository,
+    },
     { provide: CREATE_TICKET_USE_CASE, useClass: CreateTicketUseCase },
     {
       provide: TICKET_STATE_MACHINE_USE_CASE,
       useClass: TicketStateMachineUseCase,
+    },
+    {
+      provide: RECONCILE_STUCK_TICKETS_USE_CASE,
+      useClass: ReconcileStuckTicketsUseCase,
     },
   ],
 })

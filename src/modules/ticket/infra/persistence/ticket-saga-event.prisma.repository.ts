@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../infra/database/prisma.service';
-import type { ITicketSagaEventRepository, TicketSagaEventEntity } from '../../domain/ticket-saga-event.repository';
+import type {
+  ITicketSagaEventRepository,
+  TicketSagaEventEntity,
+} from '../../domain/ticket-saga-event.repository';
 
 @Injectable()
 export class TicketSagaEventPrismaRepository implements ITicketSagaEventRepository {

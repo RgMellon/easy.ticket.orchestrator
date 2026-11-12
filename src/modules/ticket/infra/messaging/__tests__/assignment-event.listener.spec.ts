@@ -2,7 +2,11 @@ import { AssignmentEventListener } from '../assignment-event.listener';
 
 const makeListener = () => {
   const stateMachine = {
-    execute: jest.fn().mockResolvedValue({ ticketId: 'ticket-1', from: 'CREATED', to: 'ASSIGNED' }),
+    execute: jest.fn().mockResolvedValue({
+      ticketId: 'ticket-1',
+      from: 'CREATED',
+      to: 'ASSIGNED',
+    }),
   };
   const listener = new AssignmentEventListener(stateMachine as any);
   return { listener, stateMachine };
@@ -12,9 +16,16 @@ describe('AssignmentEventListener', () => {
   it('calls stateMachine with SPECIALIST_ASSIGNED on ticket.assignment.completed', async () => {
     const { listener, stateMachine } = makeListener();
 
-    await listener.handleAssignmentCompleted({ ticketId: 'ticket-1', specialistId: 'specialist-99' });
+    await listener.handleAssignmentCompleted({
+      ticketId: 'ticket-1',
+      specialistId: 'specialist-99',
+    });
 
-    expect(stateMachine.execute).toHaveBeenCalledWith('ticket-1', 'SPECIALIST_ASSIGNED', 'specialist-99');
+    expect(stateMachine.execute).toHaveBeenCalledWith(
+      'ticket-1',
+      'SPECIALIST_ASSIGNED',
+      'specialist-99',
+    );
   });
 
   it('propagates error if stateMachine throws', async () => {
@@ -22,7 +33,10 @@ describe('AssignmentEventListener', () => {
     stateMachine.execute.mockRejectedValue(new Error('transition failed'));
 
     await expect(
-      listener.handleAssignmentCompleted({ ticketId: 'ticket-1', specialistId: 'specialist-99' }),
+      listener.handleAssignmentCompleted({
+        ticketId: 'ticket-1',
+        specialistId: 'specialist-99',
+      }),
     ).rejects.toThrow('transition failed');
   });
 });

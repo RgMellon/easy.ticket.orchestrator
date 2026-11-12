@@ -5,7 +5,8 @@ import { TicketSagaContext } from '../../domain/ticket-saga.types';
 export class AssignSpecialistAction {
   private readonly logger = new Logger(AssignSpecialistAction.name);
 
-  async execute(ctx: TicketSagaContext): Promise<void> {
+  execute(ctx: TicketSagaContext): Promise<void> {
     this.logger.log(`Assigning specialist to ticket=${ctx.ticketId}`);
+    return Promise.resolve();
   }
 }

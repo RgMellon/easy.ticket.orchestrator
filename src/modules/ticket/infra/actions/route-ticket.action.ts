@@ -5,9 +5,10 @@ import { TicketSagaContext } from '../../domain/ticket-saga.types';
 export class RouteTicketAction {
   private readonly logger = new Logger(RouteTicketAction.name);
 
-  async execute(ctx: TicketSagaContext): Promise<void> {
+  execute(ctx: TicketSagaContext): Promise<void> {
     this.logger.log(
       `Routing ticket=${ctx.ticketId} to specialist=${ctx.specialistId}`,
     );
+    return Promise.resolve();
   }
 }
